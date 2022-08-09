@@ -34,8 +34,15 @@ class Traceroute
 
     class IPPacket
     {
-        byte version = 0x40;
-        short totalLength = 20;
+        byte versionAndIhl = 0x45;
+        short ipPacketLenth = 0;
+        byte ttl = 0;
+        byte protocolNumber;
+        short checkSum;
+        int sourceIp;
+        int destinationIp;
+        UDP udp;
+
 
     }
 
