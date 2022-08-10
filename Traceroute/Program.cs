@@ -15,17 +15,17 @@ class Program
 
         try
         {
-            //destinationIp = "8.8.8.8";
-            //packetSize = 1024;
-            //maxTtl = 50;
-            //attempts = 3;
-            //timeout = 250;
-
             destinationIp = args[0];
             packetSize = int.Parse(args[1]);
             maxTtl = int.Parse(args[2]);
             attempts = int.Parse(args[3]);
             timeout = int.Parse(args[4]);
+
+            //destinationIp = "8.8.8.8";
+            //packetSize = 1024;
+            //maxTtl = 50;
+            //attempts = 3;
+            //timeout = 250;
         }
         catch (Exception ex) when (ex is ArgumentNullException || ex is OverflowException || ex is FormatException || ex is IndexOutOfRangeException)
         {
@@ -37,7 +37,7 @@ class Program
         Traceroute.Route(destinationIp, packetSize, maxTtl, attempts, timeout);
     }
 }
-//Console.WriteLine(String.Join("\n",Traceroute.GetTraceRoute("8.8.8.8")));
+
 class Traceroute
 {
     static string sourceIp = "192.168.28.110";
