@@ -15,17 +15,17 @@ class Program
 
         try
         {
-            destinationIp = args[0];
-            packetSize = int.Parse(args[1]);
-            maxTtl = int.Parse(args[2]);
-            attempts = int.Parse(args[3]);
-            timeout = int.Parse(args[4]);
+            //destinationIp = args[0];
+            //packetSize = int.Parse(args[1]);
+            //maxTtl = int.Parse(args[2]);
+            //attempts = int.Parse(args[3]);
+            //timeout = int.Parse(args[4]);
 
-            //destinationIp = "8.8.8.8";
-            //packetSize = 1024;
-            //maxTtl = 50;
-            //attempts = 3;
-            //timeout = 250;
+            destinationIp = "8.8.8.8";
+            packetSize = 1024;
+            maxTtl = 50;
+            attempts = 3;
+            timeout = 250;
         }
         catch (Exception ex) when (ex is ArgumentNullException || ex is OverflowException || ex is FormatException || ex is IndexOutOfRangeException)
         {
@@ -49,9 +49,11 @@ class Traceroute
         icmpHost.Bind(new IPEndPoint(IPAddress.Parse(sourceIp), 0));
         icmpHost.ReceiveTimeout = timeout;
 
+        Socket udpHost = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+        udpHost.Bind(new IPEndPoint(IPAddress.Parse(sourceIp), 0));
+
         Icmp icmp = new Icmp();
         icmp.setSize(packetSize);
-
         EndPoint remoteIp = new IPEndPoint(IPAddress.Any, 0);
         EndPoint ra = new IPEndPoint(IPAddress.Parse(destinationIp), 0);
 
@@ -74,6 +76,7 @@ class Traceroute
             for (int k = 0; k < attempts; k++)
             {
                 icmpHost.SendTo(icmp.getBytes(), ra);
+                //udpHost.SendTo(buffer.Take(packetSize).ToArray(), ra);
                 try
                 {
                     DateTime sentTime = DateTime.Now;
@@ -99,6 +102,8 @@ class Traceroute
 
             Console.WriteLine($"{hostName} [{nodeIp}]");
         }
+
+
     }
 
     struct Icmp
