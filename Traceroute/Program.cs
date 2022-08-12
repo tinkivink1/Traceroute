@@ -7,7 +7,8 @@ class Program
 {
     public static void Main(string[] args)
     {
-        string destinationIp;
+        string remotePoint;
+        int sourceIp;
         int packetSize;
         int maxTtl;
         int attempts;
@@ -15,26 +16,40 @@ class Program
 
         try
         {
-            //destinationIp = args[0];
-            //packetSize = int.Parse(args[1]);
-            //maxTtl = int.Parse(args[2]);
-            //attempts = int.Parse(args[3]);
-            //timeout = int.Parse(args[4]);
 
-            destinationIp = "8.8.8.8";
-            packetSize = 1024;
-            maxTtl = 50;
-            attempts = 3;
-            timeout = 250;
+            //remotePoint = "8.8.8.8:53453";
+            //sourceIp = 53553;
+            //packetSize = 150;
+            //maxTtl = 30;
+            //attempts = 3;
+            //timeout = 500;
+            if (args[0] == "icmp")
+            {
+                remotePoint = args[1];
+                packetSize = int.Parse(args[2]);
+                maxTtl = int.Parse(args[3]);
+                attempts = int.Parse(args[4]);
+                timeout = int.Parse(args[5]);
+                Traceroute.IcmpTraceroute(remotePoint, packetSize, maxTtl, attempts, timeout);
+            }
+            else if (args[0] == "udp")
+            {
+                remotePoint = args[1];
+                sourceIp = int.Parse(args[2]);
+                packetSize = int.Parse(args[3]);
+                maxTtl = int.Parse(args[4]);
+                attempts = int.Parse(args[5]);
+                timeout = int.Parse(args[6]);
+                Traceroute.UdpTraceroute(remotePoint, sourceIp, packetSize, maxTtl, attempts, timeout);
+            }
         }
         catch (Exception ex) when (ex is ArgumentNullException || ex is OverflowException || ex is FormatException || ex is IndexOutOfRangeException)
         {
             Console.WriteLine("Invalid command line arguments\n" +
-                                "\tMyPing [IP] [SIZE] [MAX TTL] [ATTEMPTS] [TIMEOUT]");
+                                "\tMyPing [PROTOCOL (icmp | udp)] [REMOTE IP:REMOTE PORT (127.0.0.1:1234)] [SOURCE PORT (udp only)] [SIZE] [MAX TTL] [ATTEMPTS] [TIMEOUT]");
             return;
         }
 
-        Traceroute.Route(destinationIp, packetSize, maxTtl, attempts, timeout);
     }
 }
 
@@ -43,44 +58,61 @@ class Traceroute
     static string sourceIp = "192.168.28.110";
     static byte[] buffer = new byte[65536];
     
-    public static void Route(string destinationIp, int packetSize, int maxTtl, int attempts, int timeout)
+    public static void UdpTraceroute(string remotePoint, int sourcePort, int packetSize, int maxTtl, int attempts, int timeout)
     {
-        Socket icmpHost = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp);
-        icmpHost.Bind(new IPEndPoint(IPAddress.Parse(sourceIp), 0));
-        icmpHost.ReceiveTimeout = timeout;
+        string remoteIp = remotePoint.Split(":")[0];
+        int remotePort = int.Parse(remotePoint.Split(":")[1]);
 
-        Socket udpHost = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        udpHost.Bind(new IPEndPoint(IPAddress.Parse(sourceIp), 0));
+        IPEndPoint remoteIPEndPoint = null;
+        UdpClient udp = new UdpClient(sourcePort);
 
-        Icmp icmp = new Icmp();
-        icmp.setSize(packetSize);
-        EndPoint remoteIp = new IPEndPoint(IPAddress.Any, 0);
-        EndPoint ra = new IPEndPoint(IPAddress.Parse(destinationIp), 0);
+        try { remoteIPEndPoint = new IPEndPoint(IPAddress.Parse(remoteIp), remotePort); }
+        catch (FormatException) { }
+
+        udp.Connect(remoteIPEndPoint);
+        IPEndPoint localIPEndPoint = (IPEndPoint)udp.Client.LocalEndPoint;
+        udp.Close();
+
+        Socket udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Udp);
+        udpSocket.Bind(localIPEndPoint);
+        udpSocket.Connect(remoteIPEndPoint);
+
+        Socket icmpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp);
+        icmpSocket.Bind(localIPEndPoint);
+        icmpSocket.ReceiveTimeout = timeout;
+
+        byte[] packet = new byte[packetSize];
+        Buffer.BlockCopy(BitConverter.GetBytes(localIPEndPoint.Port), 0, packet, 0, 2);
+        Buffer.BlockCopy(BitConverter.GetBytes(remoteIPEndPoint.Port), 0, packet, 2, 2);
+        packet[5] = (byte)packet.Length;
+        packet[6] = 0;
+        packet[7] = 0;
 
         string nodeIp = "";
         string hostName = "";
-        int timeoutCounter = 0;
+        int timeoutCounter;
 
-        try { hostName = Dns.GetHostEntry(nodeIp).HostName; }
+        try { hostName = Dns.GetHostEntry(remoteIp).HostName; }
         catch (Exception) { }
-
-        Console.WriteLine($"Traceroute to {hostName} {destinationIp}\n" +
+         
+        Console.WriteLine($"Traceroute to {hostName} {remoteIp}\n" +
             $"with maximum number of hops 40");
         
 
-        for (short i = 0; i < maxTtl && nodeIp != destinationIp; i++)
+        for (udpSocket.Ttl = 1; udpSocket.Ttl < maxTtl && nodeIp != remoteIp; udpSocket.Ttl++)
         {
-            icmpHost.Ttl = i;
-            icmp.checkSum = icmp.getChecksum();
-            Console.Write($"{i + 1}\t");
-            for (int k = 0; k < attempts; k++)
+            int attemptsFailed = 0;
+            Console.Write($"{udpSocket.Ttl}\t");
+            for (int i = 0; i < attempts; i++)
             {
-                icmpHost.SendTo(icmp.getBytes(), ra);
-                //udpHost.SendTo(buffer.Take(packetSize).ToArray(), ra);
+
+                udpSocket.Send(packet, packet.Length, SocketFlags.None);
+                buffer = new byte[65536];
+
                 try
                 {
                     DateTime sentTime = DateTime.Now;
-                    icmpHost.ReceiveFrom(buffer, ref remoteIp);
+                    icmpSocket.Receive(buffer, SocketFlags.None);
                     DateTime recievedTime = DateTime.Now;
                     Console.Write($"{(int)(recievedTime-sentTime).TotalMilliseconds}ms \t");
                     timeoutCounter = 0;
@@ -88,19 +120,94 @@ class Traceroute
                 catch (SocketException)
                 {
                     Console.Write("*\t");
-                    timeoutCounter++;
-                    if (timeoutCounter > 30) 
-                    {
-                        Console.WriteLine("Remote host not responding");
-                        return;
-                    }
+                    attemptsFailed++;
                 }
             }
-            nodeIp = string.Join(".", buffer.Skip(12).Take(4));
-            try { hostName = Dns.GetHostEntry(nodeIp).HostName; }
-            catch (Exception) { }
 
-            Console.WriteLine($"{hostName} [{nodeIp}]");
+            if (attemptsFailed == attempts)
+            {
+                Console.WriteLine("Timed out request");
+            }
+            else
+            {
+                nodeIp = string.Join(".", buffer.Skip(12).Take(4));
+                try { hostName = Dns.GetHostEntry(nodeIp).HostName; }
+                catch (Exception) { }
+
+                Console.WriteLine($"{hostName} [{nodeIp}]");
+            }
+
+        }
+    }
+
+    public static void IcmpTraceroute(string destinationIp, int packetSize, int maxTtl, int attempts, int timeout)
+    {
+        IPEndPoint remoteIPEndPoint = null;
+        try
+        {
+            remoteIPEndPoint = new IPEndPoint(IPAddress.Parse(destinationIp), 55555);
+        }
+        catch (FormatException)
+        {
+
+        }
+
+        Socket icmpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp);
+        icmpSocket.ReceiveTimeout = timeout;
+        icmpSocket.Bind(new IPEndPoint(IPAddress.Parse("192.168.28.110"), 0));
+
+        string nodeIp = "";
+        string hostName = "";
+        int timeoutCounter;
+
+        try { hostName = Dns.GetHostEntry(destinationIp).HostName; }
+        catch (Exception) { }
+
+        Console.WriteLine($"Traceroute to {hostName} {destinationIp}\n" +
+            $"with maximum number of hops 40");
+
+
+        for (icmpSocket.Ttl = 1; icmpSocket.Ttl < maxTtl && nodeIp != destinationIp; icmpSocket.Ttl++)
+        {
+            int attemptsFailed = 0;
+            Console.Write($"{icmpSocket.Ttl}\t");
+            for (int i = 0; i < attempts; i++)
+            {
+                Icmp icmp = new Icmp();
+                icmp.setSize(packetSize);
+                icmp.checkSum = icmp.getChecksum();
+                icmpSocket.SendTo(icmp.getBytes(), SocketFlags.None, remoteIPEndPoint);
+
+                buffer = new byte[65536];
+
+                try
+                {
+                    DateTime sentTime = DateTime.Now;
+                    icmpSocket.Receive(buffer, SocketFlags.None);
+                    DateTime recievedTime = DateTime.Now;
+                    Console.Write($"{(int)(recievedTime - sentTime).TotalMilliseconds}ms \t");
+                    timeoutCounter = 0;
+                }
+                catch (SocketException)
+                {
+                    Console.Write("*\t");
+                    attemptsFailed++;
+                }
+            }
+
+            if (attemptsFailed == attempts)
+            {
+                Console.WriteLine("Timed out request");
+            }
+            else
+            {
+                nodeIp = string.Join(".", buffer.Skip(12).Take(4));
+                try { hostName = Dns.GetHostEntry(nodeIp).HostName; }
+                catch (Exception) { }
+
+                Console.WriteLine($"{hostName} [{nodeIp}]");
+            }
+
         }
 
 
