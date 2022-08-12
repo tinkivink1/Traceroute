@@ -16,9 +16,6 @@ class Program
 
         try
         {
-
-
-
             if (args[0] == "icmp")
             {
                 remotePoint = args[1];
@@ -52,7 +49,7 @@ class Program
 class Traceroute
 {
     static byte[] buffer = new byte[65536];
-    
+    static string sourceIp = "192.168.28.110";
     public static void UdpTraceroute(string remotePoint, int sourcePort, int packetSize, int maxTtl, int attempts, int timeout)
     {
         string remoteIp = remotePoint.Split(":")[0];
@@ -143,7 +140,7 @@ class Traceroute
 
         Socket icmpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp);
         icmpSocket.ReceiveTimeout = timeout;
-        icmpSocket.Bind(new IPEndPoint(IPAddress.Parse("192.168.28.110"), 0));
+        icmpSocket.Bind(new IPEndPoint(IPAddress.Parse(sourceIp), 0));
 
         string nodeIp = "";
         string hostName = "";
@@ -153,7 +150,7 @@ class Traceroute
         catch (Exception) { }
 
         Console.WriteLine($"Traceroute to {hostName} {destinationIp}\n" +
-            $"with maximum number of hops 40");
+            $"with maximum number of hops {maxTtl}");
 
 
         for (icmpSocket.Ttl = 1; icmpSocket.Ttl < maxTtl && nodeIp != destinationIp; icmpSocket.Ttl++)
