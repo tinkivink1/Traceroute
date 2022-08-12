@@ -13,14 +13,7 @@ class Program
         int maxTtl;
         int attempts;
         int timeout;
-        //remotePoint = "8.8.8.8:53453";
-        //sourceIp = 53553;
-        //packetSize = 150;
-        //maxTtl = 30;
-        //attempts = 3;
-        //timeout = 500;
-        //Traceroute.IcmpTraceroute("35.234.248.49", packetSize, maxTtl, attempts, timeout);
-        //Traceroute.UdpTraceroute("35.234.248.49:53453", sourceIp, packetSize, maxTtl, attempts, timeout);
+
         try
         {
 
