@@ -13,16 +13,19 @@ class Program
         int maxTtl;
         int attempts;
         int timeout;
-
+        //remotePoint = "8.8.8.8:53453";
+        //sourceIp = 53553;
+        //packetSize = 150;
+        //maxTtl = 30;
+        //attempts = 3;
+        //timeout = 500;
+        //Traceroute.IcmpTraceroute("35.234.248.49", packetSize, maxTtl, attempts, timeout);
+        //Traceroute.UdpTraceroute("35.234.248.49:53453", sourceIp, packetSize, maxTtl, attempts, timeout);
         try
         {
 
-            //remotePoint = "8.8.8.8:53453";
-            //sourceIp = 53553;
-            //packetSize = 150;
-            //maxTtl = 30;
-            //attempts = 3;
-            //timeout = 500;
+
+
             if (args[0] == "icmp")
             {
                 remotePoint = args[1];
@@ -46,7 +49,7 @@ class Program
         catch (Exception ex) when (ex is ArgumentNullException || ex is OverflowException || ex is FormatException || ex is IndexOutOfRangeException)
         {
             Console.WriteLine("Invalid command line arguments\n" +
-                                "\tMyPing [PROTOCOL (icmp | udp)] [REMOTE IP:REMOTE PORT (127.0.0.1:1234)] [SOURCE PORT (udp only)] [SIZE] [MAX TTL] [ATTEMPTS] [TIMEOUT]");
+                                "\tTraceroute [PROTOCOL (icmp | udp)] [REMOTE IP:REMOTE PORT (127.0.0.1:1234)] [SOURCE PORT (udp only)] [SIZE] [MAX TTL] [ATTEMPTS] [TIMEOUT]");
             return;
         }
 
@@ -55,7 +58,6 @@ class Program
 
 class Traceroute
 {
-    static string sourceIp = "192.168.28.110";
     static byte[] buffer = new byte[65536];
     
     public static void UdpTraceroute(string remotePoint, int sourcePort, int packetSize, int maxTtl, int attempts, int timeout)
@@ -143,14 +145,8 @@ class Traceroute
     public static void IcmpTraceroute(string destinationIp, int packetSize, int maxTtl, int attempts, int timeout)
     {
         IPEndPoint remoteIPEndPoint = null;
-        try
-        {
-            remoteIPEndPoint = new IPEndPoint(IPAddress.Parse(destinationIp), 55555);
-        }
-        catch (FormatException)
-        {
-
-        }
+        try { remoteIPEndPoint = new IPEndPoint(IPAddress.Parse(destinationIp), 55555); }
+        catch (FormatException) { }
 
         Socket icmpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Raw, ProtocolType.Icmp);
         icmpSocket.ReceiveTimeout = timeout;
