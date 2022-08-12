@@ -96,7 +96,7 @@ class Traceroute
         catch (Exception) { }
          
         Console.WriteLine($"Traceroute to {hostName} {remoteIp}\n" +
-            $"with maximum number of hops 40");
+            $"with maximum number of hops {maxTtl}");
         
 
         for (udpSocket.Ttl = 1; udpSocket.Ttl < maxTtl && nodeIp != remoteIp; udpSocket.Ttl++)
